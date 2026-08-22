@@ -103,29 +103,35 @@ def main(argv):
         print('== rebuild_index ==\nERROR: 未找到 %s' % wiki_root)
         return
 
-    new_text, n = build_index(wiki_root)
-    index_path = wiki_root / 'index.md'
-    print('== rebuild_index == | pages: %d' % n)
+    try:
+        new_text, n = build_index(wiki_root)
+        index_path = wiki_root / 'index.md'
+        print('== rebuild_index == | pages: %d' % n)
 
-    if index_path.is_file():
-        old_text = index_path.read_text(encoding='utf-8', errors='replace')
-        if old_text.strip() == new_text.strip():
-            print('index 已是最新（内容一致，忽略时间戳行）')
-            return
+        if index_path.is_file():
+            old_text = index_path.read_text(encoding='utf-8', errors='replace')
+            if old_text.strip() == new_text.strip():
+                print('index 已是最新（内容一致，忽略时间戳行）')
+                return
+            if check_only:
+                old_lines = old_text.strip().splitlines()
+                new_lines = new_text.strip().splitlines()
+                print('[check] index 陈旧：现有 %d 行 vs 重建 %d 行（--check 模式，未写入）'
+                      % (len(old_lines), len(new_lines)))
+                print('陈旧处置：直接运行无 --check 的重建（以重建为准，投影无独有信息）')
+                return
+
         if check_only:
-            old_lines = old_text.strip().splitlines()
-            new_lines = new_text.strip().splitlines()
-            print('[check] index 陈旧：现有 %d 行 vs 重建 %d 行（--check 模式，未写入）'
-                  % (len(old_lines), len(new_lines)))
-            print('陈旧处置：直接运行无 --check 的重建（以重建为准，投影无独有信息）')
+            print('[check] index 不存在；--check 模式不写入。去掉 --check 生成。')
             return
 
-    if check_only:
-        print('[check] index 不存在；--check 模式不写入。去掉 --check 生成。')
-        return
-
-    index_path.write_text(new_text, encoding='utf-8')
-    print('已重建并写入 %s' % index_path)
+        index_path.write_text(new_text, encoding='utf-8')
+        print('已重建并写入 %s' % index_path)
+    except Exception as e:
+        import wiki_log
+        wiki_log.dump_error(root, e)
+        print('ERROR: %s' % e)
+        return 1
 
 
 if __name__ == '__main__':

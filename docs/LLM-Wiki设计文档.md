@@ -510,7 +510,7 @@ Token 经济学：读源从整篇降到 diff；定位页面从全库搜索降到
 
 **2. 聚合端：llm-wiki-lite（聚合，零 LLM）**
 
-- 落点：`scripts/wiki_metrics.py`（确定性脚本，Python 3.8+ 标准库，无第三方依赖）。复用 `wiki_check.py` 的 `parse_frontmatter`/`raw_values` 解析 `raw` 坐标。
+- 落点：统一入口 `scripts/wiki_lint.py`（编排一次检查：`wiki_check` 事实校验 + `wiki_coverage` 覆盖度 + 有遥测时 `wiki_metrics` 行为度量，合并成**一份报告**；无遥测时度量部分标注跳过，检查不空跑）；底层 `scripts/wiki_metrics.py`（确定性脚本，Python 3.8+ 标准库，无第三方依赖）。复用 `wiki_check.py` 的 `parse_frontmatter`/`raw_values` 解析 `raw` 坐标。
 - 数据流：`§10.4 查询归并 → §10.3 维度4-8 → §10.5 按源聚合 → §10.6 闭环对比`。
 - §10.4 查询归并（三层零 LLM 启发式）：① 动作分类（非查询工具如 ingest/lint/refine 切断查询）；② 时间间隙（相邻调用 > `gap_seconds` 默认 600s 切断）；③ 路径连贯性（间隙过半且顶层目录跳变切断）。多 vault 场景下过滤发生在归并**之前**，按 `event.vault` 严格隔离，杜绝跨库归并污染。
 - 维度计算（`compute_dimensions`）：
@@ -547,3 +547,4 @@ Token 经济学：读源从整篇降到 diff；定位页面从全库搜索降到
 | V1.6 | 2026-08-22 | 新增 §10.8 实施方案：obsidian-mcp-pro `monitor.ts`+`tool-seam.ts` 零 LLM 采集工具调用遥测（`OBSIDIAN_TELEMETRY` 开关、`CallEvent` Schema、`defineTool` 双路径 hook）；llm-wiki-lite 新增 `wiki_metrics.py`（§10.4→10.3→10.5→10.6 确定性聚合，覆盖维度4-8、按 `raw` 坐标聚合、多 vault 隔离、`--baseline` 闭环对比）与 `test_wiki_metrics.py`（纯 unittest，12 项）。两端靠 `CallEvent` Schema 解耦。 |
 | V1.7 | 2026-08-22 | 实现 §10.2「静态覆盖度」子命令 `wiki_coverage.py`：复用 `wiki_check.py` 的 `raw_values` 取源文档章节树，与"吸收文本"（src 页正文 ∪ 所有 `[[src-xxx]]` 指向它的页面正文）做零 LLM 子串命中比对，输出每源章节/术语命中率、未吸收章节清单与 `coverage_avg`；含 `test_wiki_coverage.py` 合成 vault 自测。设计文档 §10.2 落点由"待补"改为已落地。 |
 | V1.8 | 2026-08-22 | `wiki_metrics.py` 新增 §10.5 知识缺口（gap-to-action，零 LLM）：对每个未命中 query 归一化后与 vault 全部 wiki 页正文+标题子串比对，分类为 `MISSING`（真没录→待录入主题候选，按频次降序）或 `STALE_SEARCH`（知识在但检索词没接住→待修索引/双链/别名），报告新增 `Knowledge gaps` 块，把行为噪音直接转成"该录什么/该补什么索引"的可执行动作。 |
+| V1.9 | 2026-08-23 | **统一检查入口 + 度量并入 Lint + 出错定位日志**：① 新增 `wiki_lint.py` 统一 Lint 入口，编排 `wiki_check`+`wiki_coverage`+（有遥测）`wiki_metrics` 合并为一份报告，SKILL 只保留"执行 Lint 检查→按报告行为建议响应"一个动作；② 行为度量由独立操作改为 **Lint 内含**（供给侧覆盖度冷启动可跑、需求侧度量需遥测、无遥测标注跳过）；③ 新增极简 `wiki_log.py`（仅 `dump_error`，出错时把异常+堆栈写系统临时目录、按项目隔离，**正常执行零文件**），并给全部 6 个脚本（check/coverage/metrics/changed/lint/rebuild_index）统一加异常兜底。SKILL.md 依据"报告即指令、度量驱动"大幅精简结果约束提示词（V1.4.0），清理兼容性/架构设计描述残留。 |

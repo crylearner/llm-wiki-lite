@@ -657,4 +657,12 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except SystemExit:
+        raise
+    except Exception as e:
+        import wiki_log
+        wiki_log.dump_error('.', e)
+        print('ERROR: %s' % e)
+        raise SystemExit(1)

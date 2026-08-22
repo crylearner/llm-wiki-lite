@@ -242,4 +242,11 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    main(sys.argv)
+    try:
+        main(sys.argv)
+    except Exception as e:
+        import wiki_log
+        root = sys.argv[1] if len(sys.argv) > 1 else '.'
+        wiki_log.dump_error(root, e)
+        print('ERROR: %s' % e)
+        raise SystemExit(1)
